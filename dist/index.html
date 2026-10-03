@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#162832">
+  <meta name="description" content="Un piccolo mondo per Claude. Esplora un’isola 3D, visita il villaggio e accompagna Clawd dal primo modello a Fable 5.1.">
+  <title>Claude Island · Una vita di token</title>
+  <link rel="icon" href="./assets/clawd.png">
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+  <main id="world" aria-label="Isola 3D di Claude">
+    <canvas id="scene" aria-label="Villaggio 3D interattivo. Trascina per ruotare; clicca su un edificio per visitarlo." tabindex="0"></canvas>
+    <div class="world-vignette" aria-hidden="true"></div>
+    <div id="loading" class="loading"><img src="./assets/clawd.png" alt=""><strong>Un piccolo mondo sta nascendo.</strong><span>Sto preparando l’isola di Claude…</span></div>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Claude Island"><img src="./assets/clawd.png" alt="Clawd"><span><strong>Claude Island<span class="brand-dot">.</span></strong><small>UNA VITA DI TOKEN</small></span></a>
+      <div class="world-clock"><span class="live-dot"></span><span id="sim-status">La vita scorre</span><span class="divider"></span><span id="day">Giorno 1</span><span id="clock" class="mono">09:00</span></div>
+      <div class="header-actions"><button id="sound" class="icon-button" aria-label="Attiva suoni del mare" aria-pressed="false" data-icon="volume-off"></button><button id="help" class="icon-button" aria-label="Come si gioca" data-icon="help"></button></div>
+    </header>
+
+    <aside class="left-panel panel" id="stats-panel" aria-label="Claude e i suoi progressi">
+      <div class="panel-eyebrow"><span>IL TUO PICCOLO CLAUDE</span><button class="panel-close icon-button" data-close="stats-panel" aria-label="Chiudi statistiche" data-icon="close"></button></div>
+      <div class="character-heading"><div><h1 id="model-name">Claude</h1><span id="model-era" class="subtle">Marzo 2023 · Le origini</span></div><span class="level-badge">LV<span id="level">01</span></span></div>
+      <div class="xp-label"><span>Prossima evoluzione</span><span id="xp-text" class="mono">0 / 300 XP</span></div>
+      <div class="progress" role="progressbar" aria-label="Esperienza al prossimo livello" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="xp-progress"><span id="xp-fill"></span></div>
+      <div class="activity"><span id="activity-icon" class="activity-icon" data-icon="code"></span><div><strong id="activity-name">Scrive le prime righe</strong><small id="activity-detail">Un mondo, una funzione alla volta.</small></div></div>
+      <div class="thinking-row"><span data-icon="brain"></span><span id="thinking-label">Ragionamento diretto</span></div>
+      <label class="effort-label" for="effort">Impegno nel ragionamento <span id="effort-unlock" class="subtle">dal livello 13</span></label>
+      <select id="effort" disabled><option value="auto">Automatico</option><option value="low">Basso</option><option value="medium">Medio</option><option value="high">Alto</option><option value="max">Massimo</option></select>
+      <div class="panel-rule"></div>
+      <div class="token-heading"><span class="panel-eyebrow">TOKEN SIMULATI</span><span data-icon="spark"></span></div>
+      <div class="token-total mono" id="token-total">0<span>tok</span></div>
+      <div class="token-grid"><div><span>Input</span><strong class="mono" id="token-input">0</strong></div><div><span>Output</span><strong class="mono" id="token-output">0</strong></div><div><span>Ragionamento</span><strong class="mono" id="token-thinking">—</strong></div><div><span>Cache letta</span><strong class="mono" id="token-cache">—</strong></div></div>
+      <div class="token-note">La crescita è un gioco. Questi token non consumano il tuo account Claude.</div>
+    </aside>
+
+    <aside class="right-panel" id="environment-panel" aria-label="Meteo e diario">
+      <section class="panel weather-panel">
+        <div class="panel-eyebrow"><span>IL CIELO SULL’ISOLA</span><button class="panel-close icon-button" data-close="environment-panel" aria-label="Chiudi ambiente" data-icon="close"></button></div>
+        <div class="weather-heading"><span id="weather-icon" data-icon="sun"></span><div><strong id="weather-name">Sereno</strong><small id="weather-description">Una buona giornata per creare.</small></div><span id="temperature" class="mono">24°</span></div>
+        <div class="weather-controls" role="group" aria-label="Meteo della simulazione"><button data-weather="auto" class="active" aria-pressed="true">Auto</button><button data-weather="sun" aria-label="Sereno" aria-pressed="false" data-icon="sun"></button><button data-weather="rain" aria-label="Pioggia" aria-pressed="false" data-icon="rain"></button><button data-weather="storm" aria-label="Temporale" aria-pressed="false" data-icon="storm"></button></div>
+        <small class="weather-note">Meteo del mondo simulato</small>
+      </section>
+      <section class="panel journal-panel"><div class="panel-eyebrow">DAL PC DI CLAUDE<span class="terminal-symbol">&gt;_</span></div><div class="terminal" id="terminal" aria-label="Codice della simulazione"></div><div class="journal-divider"></div><div id="journal" class="journal" aria-label="Diario delle attività"></div></section>
+    </aside>
+
+    <div class="scene-caption"><span class="caption-line"></span><span>UN’ISOLA. MILLE PICCOLE IDEE.</span><span class="caption-line"></span></div>
+    <div id="speech" class="speech" hidden><span id="speech-text"></span><span class="speech-tail"></span></div>
+    <div id="toast" role="status" class="toast" hidden></div>
+    <div class="camera-tools"><button id="zoom-in" class="icon-button" aria-label="Avvicina la camera" data-icon="plus"></button><button id="zoom-out" class="icon-button" aria-label="Allontana la camera" data-icon="minus"></button><span></span><button id="reset-camera" class="icon-button" aria-label="Ripristina vista dell’isola" data-icon="camera"></button><button id="focus-claude" class="icon-button" aria-label="Segui Claude" aria-pressed="false" data-icon="target"></button></div>
+    <div class="explore-controls"><button id="manual" aria-pressed="false"><span data-icon="footsteps"></span><span id="manual-label">Guida Claude</span><kbd>W A S D</kbd></button><span id="population-label">1 abitante · Piccola isola</span></div>
+    <div id="dpad" class="dpad" hidden aria-label="Muovi Claude"><button data-move="up" aria-label="Cammina avanti">↑</button><button data-move="left" aria-label="Cammina a sinistra">←</button><button data-move="down" aria-label="Cammina indietro">↓</button><button data-move="right" aria-label="Cammina a destra">→</button></div>
+
+    <footer class="bottom-area">
+      <div class="mobile-tabs"><button data-panel="stats-panel" data-icon="spark"><span>Claude</span></button><button data-panel="environment-panel" data-icon="sun"><span>Ambiente</span></button></div>
+      <div class="timeline-panel panel"><div class="playback"><button id="pause" class="icon-button primary-icon" aria-label="Metti in pausa" aria-pressed="false" data-icon="pause"></button><div class="speed-controls" role="group" aria-label="Velocità del tempo"><button data-speed="1" class="active" aria-pressed="true">1×</button><button data-speed="5" aria-pressed="false">5×</button><button data-speed="20" aria-pressed="false">20×</button></div></div><div class="timeline"><div class="timeline-title"><span id="timeline-origin">Le origini · 2023</span><span class="goal">Fable 5.1 <b>MAX</b></span></div><div class="timeline-track"><div id="journey-fill"></div><span style="left:0%"></span><span style="left:17%"></span><span style="left:33%"></span><span style="left:50%"></span><span style="left:67%"></span><span style="left:83%"></span><span style="left:100%"></span></div><div class="timeline-years"><span>2023</span><span>2024</span><span>2025</span><span>2026</span></div></div><button id="models" class="models-button"><span data-icon="layers"></span><span>Modelli</span><span class="archive-count">32</span></button></div>
+      <div class="bottom-hint"><span>Trascina per ruotare · Scorri per avvicinarti · Tocca il villaggio per esplorarlo</span><span class="save-status" id="save-status"><span data-icon="check"></span>Progressi salvati qui</span></div>
+    </footer>
+  </main>
+
+  <dialog id="archive" class="archive-dialog"><div class="dialog-header"><div><span class="panel-eyebrow">DALLE ORIGINI A OGGI</span><h2>Una storia di evoluzioni.</h2><p>Esplora le generazioni di Claude. La tua isola cresce seguendo questa storia.</p></div><button class="icon-button" data-dialog-close="archive" aria-label="Chiudi archivio" data-icon="close"></button></div><div class="archive-tabs" role="group" aria-label="Generazioni"><button data-filter="all" class="active" aria-pressed="true">Tutti</button><button data-filter="2023" aria-pressed="false">2023</button><button data-filter="2024" aria-pressed="false">2024</button><button data-filter="2025" aria-pressed="false">2025</button><button data-filter="2026" aria-pressed="false">2026</button></div><div id="model-list" class="model-list"></div><p class="archive-note">Date e caratteristiche: annunci Anthropic. Livelli, XP e velocità sono regole di gioco. Archivio verificato al 3 ottobre 2026. Progetto fan indipendente.</p></dialog>
+  <dialog id="help-dialog" class="help-dialog"><div class="dialog-header"><div><span class="panel-eyebrow">BENVENUTO SULL’ISOLA</span><h2>Lascia scorrere la vita.</h2></div><button class="icon-button" data-dialog-close="help-dialog" aria-label="Chiudi istruzioni" data-icon="close"></button></div><p>Claude vive da solo: scrive codice, riflette, visita i negozi e fa due passi al molo. Ogni attività gli dà esperienza, fino a Fable 5.1 con impegno massimo.</p><ul><li><strong>Esplora.</strong> Trascina per ruotare la vista e scorri per avvicinarti. Sul telefono, usa due dita per lo zoom.</li><li><strong>Guida Claude.</strong> Attiva «Guida Claude» e usa WASD o le frecce. Sul telefono compare un piccolo controllo direzionale. Premi Esc per tornare alla vita automatica.</li><li><strong>Visita.</strong> Tocca la casetta, il caffè, l’emporio, la libreria o il molo: Claude raggiungerà quel luogo.</li><li><strong>Cresci.</strong> Usa 5× o 20× per accelerare il tempo. L’isola si espande e arrivano abitanti delle versioni precedenti. Dal livello di Claude 3.7 puoi scegliere l’impegno nel ragionamento.</li><li><strong>Ritorna.</strong> I progressi vengono salvati su questo browser. Anche il tempo trascorso lontano dall’isola conta, fino a 8 ore per visita.</li></ul><p class="subtle">È una simulazione: meteo, attività e token sono parte del gioco. Non si connette al tuo account e non usa l’API Claude.</p><div class="help-actions"><button id="go-code" class="orange-button">Claude, torniamo al PC</button><button id="export-save" class="quiet-button">Scarica i progressi</button></div></dialog>
+  <script>window.addEventListener('error',()=>{if(!window.islandReady){const l=document.getElementById('loading');l.innerHTML='<strong>L’isola non riesce ad aprirsi.</strong><span>Prova a ricaricare con un browser che supporta WebGL 2.</span>';}});</script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

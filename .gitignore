@@ -1,0 +1,5 @@
+.sites-runtime/
+.superdesign/
+artifacts/
+*.tar.gz
+.DS_Store
