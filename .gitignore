@@ -1,5 +1,13 @@
 .sites-runtime/
 .superdesign/
 artifacts/
+releases/
 *.tar.gz
 .DS_Store
+android/.gradle/
+android/**/build/
+android/local.properties
+android/keystore.properties
+*.jks
+*.keystore
+__pycache__/

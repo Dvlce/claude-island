@@ -2,7 +2,7 @@ import asyncio, json
 from pathlib import Path
 from playwright.async_api import async_playwright
 
-OUT=Path('/Users/dvlce/claude-island/artifacts')
+OUT=Path(__file__).resolve().parent/'artifacts'
 OUT.mkdir(exist_ok=True)
 
 async def run():
@@ -11,6 +11,8 @@ async def run():
         page=await browser.new_page(viewport={'width':1600,'height':1000},device_scale_factor=1)
         errors=[]
         page.on('pageerror',lambda e: errors.append(str(e)))
+        external=[]
+        page.on('request',lambda r: external.append(r.url) if not r.url.startswith(('http://127.0.0.1:5179/','blob:','data:')) else None)
         await page.goto('http://127.0.0.1:5179/',wait_until='networkidle')
         await page.wait_for_function('window.islandReady === true',timeout=30000)
         await page.wait_for_timeout(2500)
@@ -60,6 +62,39 @@ async def run():
         print(json.dumps({'initial':initial,'mature':mature},indent=2),flush=True)
         assert mature['residents']==12 and mature['islandScale']>1.3
         assert mature['model']=='fable-5-1'
+        assert mature['rendererCalls']<100, 'Mature world draw budget regressed'
+        assert not external, f'Offline game requested external assets: {external}'
+        await page.locator('#quality').select_option('fluid')
+        assert await page.evaluate('window.islandDebug().quality')=='fluid'
+        await page.locator('[data-speed="5"]').click()
+        for action in ['nerd','wizard','skate','swim']:
+            await page.locator('#moment').select_option(action)
+            await page.locator('#try-moment').click()
+            await page.wait_for_function('(a)=>window.islandDebug().moment===a',arg=action,timeout=45000)
+            await page.screenshot(path=str(OUT/f'{action}.png'))
+            if action=='swim':
+                await page.wait_for_timeout(1300)
+                assert await page.evaluate('window.islandDebug().position[1]')<.5
+            await page.wait_for_function('window.islandDebug().moment===null',timeout=30000)
+            assert abs((await page.evaluate('window.islandDebug().position[1]'))-.72)<.01
+        # Commission land, then a building, and verify transactions survive reload.
+        await page.locator('[data-speed="20"]').click()
+        landBefore=await page.evaluate('window.islandDebug().construction.expansions')
+        await page.locator('#expand-island').click()
+        await page.wait_for_function('(n)=>window.islandDebug().construction.expansions>n',arg=landBefore,timeout=45000)
+        builtBefore=await page.evaluate('window.islandDebug().construction.built.length')
+        await page.locator('#construct').click()
+        await page.wait_for_function('window.islandDebug().moment==="build"',timeout=45000)
+        await page.screenshot(path=str(OUT/'construction.png'))
+        await page.wait_for_function('(n)=>window.islandDebug().construction.built.length>n',arg=builtBefore,timeout=30000)
+        await page.locator('#manual').click() # suspend autonomous builds during persistence check
+        await page.wait_for_timeout(5200)
+        builtSaved=await page.evaluate('window.islandDebug().construction')
+        await page.reload(wait_until='networkidle')
+        await page.wait_for_function('window.islandReady===true')
+        assert await page.evaluate('window.islandDebug().construction.built')==builtSaved['built']
+        assert await page.evaluate('window.islandDebug().construction.expansions')==builtSaved['expansions']
+        await page.screenshot(path=str(OUT/'built-village.png'))
         await page.screenshot(path=str(OUT/'mature.png'))
         await page.locator('#models').click()
         await page.screenshot(path=str(OUT/'archive.png'))
@@ -75,6 +110,7 @@ async def run():
         await page.locator('#manual').click()
         assert await page.locator('#dpad').is_visible()
         assert not errors, errors
+        assert not external, external
         print(json.dumps({'initial':initial,'progressed':progressed,'restored':restored,'mature':mature,'manual_before':before,'manual_after':after,'errors':errors},indent=2))
         await browser.close()
 
